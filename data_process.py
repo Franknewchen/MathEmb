@@ -4,10 +4,77 @@ import numpy as np
 import networkx as nx
 from torch_geometric.data import Data
 
+from math_tan.math_extractor import MathExtractor
+from math_tan.math_document import MathDocument
+from util_for_data import GraphDict
 
+
+operator = True
 delta = 5
 allowable_features = torch.load('w2c/words_mc=' + str(delta) + '.pt')
 tail = str(len(allowable_features))
+
+
+def create_formula_string(filePathForresults, filePath, dirId, missing_tags=None, problem_files=None):
+    parts = filePath.split('/')
+    file_name = os.path.splitext(parts[len(parts)-1])[0]
+    (ext, content) = MathDocument.read_doc_file(filePath)
+    formulas = MathExtractor.parse_from_xml(content, 1, operator=operator, missing_tags=missing_tags,
+                                                problem_files=problem_files)
+    for key in formulas:
+        f = open(filePathForresults+"/"+str(dirId)+"/"+file_name+"_"+str(key)+".txt", "w+", encoding='utf-8')
+        try:
+            f.write(formulas[key].tostring())
+        except:
+            print(filePath)
+        f.close()
+
+
+def wiki_to_string():
+    root = '../NTCIR12_MathIR_WikiCorpus_v2.1.0/MathTagArticles/wpmath00000'
+    if operator:
+        filePathForresults = '../FormulaString/OPT'
+    else:
+        filePathForresults = '../FormulaString/SLT'
+    for j in range(16, 17):
+        tempAddress = root
+        if j < 10:
+            tempAddress = tempAddress + '0' + str(j) + '/Articles'
+        else:
+            tempAddress = tempAddress + str(j) + '/Articles'
+        for filename in os.listdir(tempAddress):
+            filePath = tempAddress + '/' + filename
+            try:
+                create_formula_string(filePathForresults, filePath, j)
+            except:
+                print(filePath)
+
+
+def string_to_graph_dict():
+    rootPath = '../FormulaString/OPT'
+    resultPath = '../FormulaGraph/OPT'
+    for k in range(10, 11):
+        tempAddress = rootPath + '/' + str(k)
+        for file in os.listdir(tempAddress):
+            filePath = tempAddress + '/' + file
+            with open(filePath, 'r', encoding='utf-8') as f:
+                tree_string = f.read()
+                f.close()
+            try:
+                g = GraphDict(tree_string)
+                graph_dict = g.create_graph_dict_from_string()
+                node_dict = g.node_dict
+                unified_node_dict = g.unified_node_dict
+                tree_dict = g.number_tree_dict
+            except:
+                print(filePath)
+            with open(resultPath + '/' + str(k) + '/' + file, 'w+', encoding = 'utf-8') as f:
+                try:
+                    f.write(str(node_dict) + '\r\n' + str(unified_node_dict) + '\r\n'
+                            + str(tree_dict) + '\r\n' + str(graph_dict))
+                except:
+                    print(filePath)
+                f.close()
 
 
 def graph_dict_to_graph_data_obj(graph_dict, node_dict):
@@ -129,15 +196,13 @@ def nx_to_graph_data_obj_simple(G):
     return data
 
 
-class FormulaDataset:
-    def __init__(self, rootPath, k):
-        self.rootPath = rootPath
-        self.data_list = self.formula_graph_dataset(k)
-
-    def formula_graph_dataset(self, k):
+def create_dataset():
+    rootPath = '../FormulaGraph/OPT'
+    full_data_list = []
+    for k in range(1, 17):
         data_list = []
         print('{0} is being processed...'.format(k))
-        tempAddress = self.rootPath + '/' + str(k)
+        tempAddress = rootPath + '/' + str(k)
         for file in os.listdir(tempAddress):
             filePath = tempAddress + '/' + file
             with open(filePath, 'r', encoding='utf-8') as f:
@@ -150,20 +215,16 @@ class FormulaDataset:
                 data_list.append(data)
             except:
                 print(filePath)
-
-        return data_list
+        torch.save(data_list, 'dataset_' + tail + '/' + str(k) + '.pt')
+        full_data_list = full_data_list + data_list
+    print(len(full_data_list), ' graphs in total')
+    torch.save(full_data_list, 'dataset_' + tail + '/' + 'full.pt')
 
 
 def main():
-    rootPath = '../FormulaGraphLinux/OPT'
-    full_data_list = []
-    for k in range(1, 17):
-        dataset = FormulaDataset(rootPath, k).data_list
-        print('dataset_'+str(k)+' is being saved...')
-        torch.save(dataset, 'dataset_' + tail + '/' + str(k) + '.pt')
-        full_data_list = full_data_list + dataset
-    print(len(full_data_list))
-    torch.save(full_data_list, 'dataset_' + tail + '/' + 'full.pt')
+    wiki_to_string()
+    string_to_graph_dict()
+    create_dataset()
 
 
 if __name__ == '__main__':
