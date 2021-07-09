@@ -193,9 +193,9 @@ def main():
 
     print("set up models, one for pre-training and one for context embeddings")
     model_main = GNN(args.num_layer, args.emb_dim, JK=args.JK, drop_ratio=args.dropout_ratio,
-                  gnn_type=args.gnn_type, num_node_label=args.num_node_label, word2vec=args.initial_node, device=device).to(device)
+                  gnn_type=args.gnn_type, num_node_type=args.num_node_label, word2vec=args.initial_node, device=device).to(device)
     model_context = GNN(int(l2 - l1), args.emb_dim, JK=args.JK, drop_ratio=args.dropout_ratio,
-                     gnn_type=args.gnn_type, num_node_label=args.num_node_label, word2vec=args.initial_node,
+                     gnn_type=args.gnn_type, num_node_type=args.num_node_label, word2vec=args.initial_node,
                      device=device).to(device)
     linear_pred_atoms = torch.nn.Linear(args.emb_dim, args.num_node_label+2).to(device)
     model_list = [model_main, model_context, linear_pred_atoms]
