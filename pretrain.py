@@ -160,9 +160,8 @@ def main():
                         help='embedding dimensions (default: 300)')
     parser.add_argument('--dataset', type=str, default='dataset/dataset_5000', help='dataset to be choosed')
     parser.add_argument('--gnn_type', type=str, default="gcn")
-    parser.add_argument('--num_node_type', type=int, default=5000, help='number of node type or node feature')
+    parser.add_argument('--num_node_label', type=int, default=5000, help='number of node lebel or node feature')
     parser.add_argument('--initial_node', type=str, default='w2c', help='w2c or emb')
-    parser.add_argument('--output_model_file', type=str, default='gcn_5000_w2c', help='filename to output the model')
 
     args = parser.parse_args()
 
@@ -178,11 +177,11 @@ def main():
 
     print(args.gnn_type)
     print("num layer: {0} l1: {1} l2: {2} mask rate: {3} mask edge: {4} batch size: {5} epochs: {6}".format(args.num_layer, l1, l2, args.mask_rate, args.mask_edge, args.batch_size, args.epochs))
-    print('output_model_file: {}'.format(args.output_model_file))
+    print('output_model_file: model/' + args.gnn_type + str(args.num_node_label) + args.initial_node + '.pth')
     print(args.dataset + ' is being loaded...')
     dataset = torch.load(args.dataset + '/' + 'full.pt')
     print('dataset size: {}'.format(len(dataset)))
-    transform = MaskAtomAndExtractSubstructureContextPair(args.num_layer, l1, l2, num_atom_type=args.num_node_type+1, num_edge_type=62,
+    transform = MaskAtomAndExtractSubstructureContextPair(args.num_layer, l1, l2, num_atom_type=args.num_node_label+1, num_edge_type=62,
                                                           mask_rate=args.mask_rate, mask_edge=args.mask_edge)
     print("dataset transforming...")
     for data in dataset:
@@ -194,11 +193,11 @@ def main():
 
     print("set up models, one for pre-training and one for context embeddings")
     model_main = GNN(args.num_layer, args.emb_dim, JK=args.JK, drop_ratio=args.dropout_ratio,
-                  gnn_type=args.gnn_type, num_node_type=args.num_node_type, word2vec=args.initial_node, device=device).to(device)
+                  gnn_type=args.gnn_type, num_node_label=args.num_node_label, word2vec=args.initial_node, device=device).to(device)
     model_context = GNN(int(l2 - l1), args.emb_dim, JK=args.JK, drop_ratio=args.dropout_ratio,
-                     gnn_type=args.gnn_type, num_node_type=args.num_node_type, word2vec=args.initial_node,
+                     gnn_type=args.gnn_type, num_node_label=args.num_node_label, word2vec=args.initial_node,
                      device=device).to(device)
-    linear_pred_atoms = torch.nn.Linear(args.emb_dim, args.num_node_type+2).to(device)
+    linear_pred_atoms = torch.nn.Linear(args.emb_dim, args.num_node_label+2).to(device)
     model_list = [model_main, model_context, linear_pred_atoms]
 
     print("set up optimizer for the two GNNs")
@@ -214,8 +213,7 @@ def main():
         train_loss, train_acc_pair, train_acc_node = train(args, model_list, loader, optimizer_list, device)
         print('train_loss: {0}, train_acc_pair: {1}, train_acc_node: {2}'.format(train_loss, train_acc_pair, train_acc_node))
 
-    if not args.output_model_file == "":
-        torch.save(model_main.state_dict(), "model/" + args.output_model_file + ".pth")
+    torch.save(model_main.state_dict(), "model/" + args.gnn_type + str(args.num_node_label) + args.initial_node + ".pth")
 
 
 if __name__ == "__main__":
