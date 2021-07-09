@@ -137,6 +137,17 @@ def main():
                         help='learning rate (default: 0.001)')
     parser.add_argument('--decay', type=float, default=0,
                         help='weight decay (default: 0)')
+    parser.add_argument('--dropout_ratio', type=float, default=0,
+                        help='dropout ratio (default: 0)')
+    parser.add_argument('--seed', type=int, default=0, help="Seed for splitting dataset.")
+    parser.add_argument('--num_workers', type=int, default=0, help='number of workers for dataset loading')
+    parser.add_argument('--neg_samples', type=int, default=1,
+                        help='number of negative contexts per positive context (default: 1)')
+    parser.add_argument('--JK', type=str, default="last",
+                        help='how the node features are combined across layers. last, sum, max or concat')
+    parser.add_argument('--context_pooling', type=str, default="mean",
+                        help='how the contexts are pooled (sum, mean, or max)')
+    parser.add_argument('--mode', type=str, default="cbow", help="cbow or skipgram")
     parser.add_argument('--num_layer', type=int, default=5,
                         help='number of GNN message passing layers (default: 5)')
     parser.add_argument('--csize', type=int, default=3,
@@ -147,22 +158,12 @@ def main():
                         help='whether to mask edges or not together with atoms')
     parser.add_argument('--emb_dim', type=int, default=300,
                         help='embedding dimensions (default: 300)')
-    parser.add_argument('--dropout_ratio', type=float, default=0,
-                        help='dropout ratio (default: 0)')
-    parser.add_argument('--neg_samples', type=int, default=1,
-                        help='number of negative contexts per positive context (default: 1)')
-    parser.add_argument('--JK', type=str, default="last",
-                        help='how the node features are combined across layers. last, sum, max or concat')
-    parser.add_argument('--context_pooling', type=str, default="mean",
-                        help='how the contexts are pooled (sum, mean, or max)')
-    parser.add_argument('--mode', type=str, default="cbow", help="cbow or skipgram")
-    parser.add_argument('--output_model_file', type=str, default='gcn_5000_w2c_r2', help='filename to output the model')
+    parser.add_argument('--dataset', type=str, default='dataset/dataset_5000', help='dataset to be choosed')
     parser.add_argument('--gnn_type', type=str, default="gcn")
-    parser.add_argument('--dataset', type=str, default='../chem/dataset_5000', help='dataset to be choosed')
     parser.add_argument('--num_node_type', type=int, default=5000, help='number of node type or node feature')
     parser.add_argument('--initial_node', type=str, default='w2c', help='w2c or emb')
-    parser.add_argument('--seed', type=int, default=0, help="Seed for splitting dataset.")
-    parser.add_argument('--num_workers', type=int, default=0, help='number of workers for dataset loading')
+    parser.add_argument('--output_model_file', type=str, default='gcn_5000_w2c', help='filename to output the model')
+
     args = parser.parse_args()
 
     torch.manual_seed(0)
@@ -192,12 +193,8 @@ def main():
     loader = DataLoaderMaskingAndSubstructContext(dataset, batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers)
 
     print("set up models, one for pre-training and one for context embeddings")
-    # model_main = GNN(args.num_layer, args.emb_dim, JK=args.JK, drop_ratio=args.dropout_ratio,
-    #                       gnn_type=args.gnn_type).to(device)
     model_main = GNN(args.num_layer, args.emb_dim, JK=args.JK, drop_ratio=args.dropout_ratio,
                   gnn_type=args.gnn_type, num_node_type=args.num_node_type, word2vec=args.initial_node, device=device).to(device)
-    # model_context = GNN(int(l2 - l1), args.emb_dim, JK=args.JK, drop_ratio=args.dropout_ratio,
-    #                     gnn_type=args.gnn_type).to(device)
     model_context = GNN(int(l2 - l1), args.emb_dim, JK=args.JK, drop_ratio=args.dropout_ratio,
                      gnn_type=args.gnn_type, num_node_type=args.num_node_type, word2vec=args.initial_node,
                      device=device).to(device)
@@ -218,7 +215,7 @@ def main():
         print('train_loss: {0}, train_acc_pair: {1}, train_acc_node: {2}'.format(train_loss, train_acc_pair, train_acc_node))
 
     if not args.output_model_file == "":
-        torch.save(model_main.state_dict(), args.output_model_file + ".pth")
+        torch.save(model_main.state_dict(), "model/" + args.output_model_file + ".pth")
 
 
 if __name__ == "__main__":
