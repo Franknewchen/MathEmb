@@ -2,7 +2,7 @@ import torch
 import os
 
 top_k = 1000
-tail = 'gcn_5000_w2c_r2'
+tail = 'gcn_5000_w2c'
 query_list = [['Prime_zeta_function_28.txt',9],
               ['Codex_Sinaiticus_1.txt',1],
               ['Word_lists_by_frequency_1.txt',14],
